@@ -1,0 +1,117 @@
+package org.toltec;
+
+/**
+ * A drawable object that lives inside a {@link MapCell}.
+ */
+public class GraphicObject {
+
+    // ── Core fields ───────────────────────────────────────────────────────────
+
+    /** Asset key used to look up the current image (auto-updated when animating). */
+    public String  imageName;
+
+    /** Render order within the cell — lower values are drawn first (beneath others). */
+    public int     layer     = 0;
+
+    /** Whether this object blocks movement through its cell. */
+    public boolean collision = false;
+
+    /** Draw width in pixels; -1 means "use asset size". */
+    public int     drawWidth  = -1;
+
+    /** Draw height in pixels; -1 means "use asset's natural height". */
+    public int     drawHeight = -1;
+
+    /** Vertical shift in pixels (positive = down, negative = up). */
+    public int     yOffset    = 0;
+
+    /**
+     * If {@code true}, the image is proportionally scaled so that its width
+     * exactly matches the cell width. {@link #fitScale} is applied afterwards.
+     */
+    public boolean fitToCell  = false;
+
+    /**
+     * Extra multiplier applied after {@link #fitToCell} sizing.
+     * {@code 1.0} = exact cell width, {@code 2.0} = double size, etc.
+     */
+    public double  fitScale   = 1.0;
+
+    // ── Animation state ───────────────────────────────────────────────────────
+
+    private boolean animated           = false;
+    private String  animBaseName       = "";
+    private int     frameCount         = 0;
+    private int     currentFrame       = 0;
+    private int     frameIntervalTicks = 5;
+    private int     ticksSinceChange   = 0;
+    private boolean isometric          = false;
+
+    // =========================================================================
+    // Constructors
+    // =========================================================================
+
+    public GraphicObject(String imageName) {
+        this.imageName = imageName;
+    }
+
+    public GraphicObject(String imageName, int layer) {
+        this.imageName = imageName;
+        this.layer     = layer;
+    }
+
+    public GraphicObject(String imageName, int layer, boolean collision) {
+        this.imageName = imageName;
+        this.layer     = layer;
+        this.collision = collision;
+    }
+
+    public void setIsometricType() {
+        isometric = true;
+    }
+
+    public void setIsometricType(boolean b) {
+        isometric = b;
+    }
+
+    public boolean isIsometric() {
+        return isometric;
+    }
+
+    // =========================================================================
+    // Animation
+    // =========================================================================
+
+    public void setupAnimation(String baseName, int frameCount, int frameIntervalTicks) {
+        if (frameCount <= 0) throw new IllegalArgumentException("frameCount must be > 0");
+        this.animated           = true;
+        this.animBaseName       = baseName;
+        this.frameCount         = frameCount;
+        this.frameIntervalTicks = Math.max(1, frameIntervalTicks);
+        resetAnimation();
+    }
+
+    public void resetAnimation() {
+        currentFrame      = 0;
+        ticksSinceChange  = 0;
+        if (animated) imageName = animBaseName + "[0]";
+    }
+
+    public void tick() {
+        if (!animated || frameCount <= 1) return;
+        if (++ticksSinceChange >= frameIntervalTicks) {
+            ticksSinceChange = 0;
+            currentFrame     = (currentFrame + 1) % frameCount;
+            imageName        = animBaseName + "[" + currentFrame + "]";
+        }
+    }
+
+    // =========================================================================
+    // Getters
+    // =========================================================================
+
+    public boolean isAnimated()     { return animated; }
+    public int     getFrameCount()  { return frameCount; }
+    public int     getCurrentFrame(){ return currentFrame; }
+    public String  getAnimBaseName(){ return animBaseName; }
+}
