@@ -63,8 +63,8 @@ public class UnitDemoGame extends TileGameEngine {
         o.cellWidth        = 64;
         o.cellHeight       = 32;
         o.viewType         = EngineOptions.ViewType.ISOMETRIC;
-        o.tickIntervalMs   = 6;
-        o.renderIntervalMs = 1;
+        o.tickIntervalMs   = 10;
+        o.renderIntervalMs = 10;
         return o;
     }
 
