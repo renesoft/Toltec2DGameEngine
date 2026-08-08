@@ -63,6 +63,26 @@ public class AssetStorage {
     }
 
     /**
+     * Load a single image from a classpath resource and trim away any fully
+     * transparent border (rather than a solid background colour — see
+     * {@link #loadImageResource}). Use this for art that's already saved
+     * with a transparent background and possibly extra padding around the
+     * actual artwork (e.g. a tall canvas with an isometric diamond tile
+     * sitting at the bottom of it) — without trimming, the padding gets
+     * counted as part of the image's size, so anything that scales the
+     * image to a fixed draw size (like a floor tile forced to cellWidth ×
+     * cellHeight) squashes the real artwork down small and shifts it off
+     * from where it should sit.
+     */
+    public void loadImageResourceTrimAlpha(String name, String resource) throws IOException {
+        InputStream is = Objects.requireNonNull(
+                getClass().getResourceAsStream(resource), "Resource not found: " + resource);
+        BufferedImage raw = ImageIO.read(is);
+        if (raw == null) throw new IOException("Cannot decode resource: " + resource);
+        assets.put(name, trimTransparent(toRGB(raw)));
+    }
+
+    /**
      * Load an animation sheet from a file.
      * Frames are identified by finding all rows and columns that consist entirely
      * of the background colour; the remaining rectangular cells are extracted,
@@ -144,31 +164,39 @@ public class AssetStorage {
             maxH = Math.max(maxH, f.getHeight());
         }
 
-        // 2. Нормализуем каждый фрейм
+        // 2. Нормализуем каждый фрейм к одному размеру.
+        //    Важно: индекс кадра в имени ассета ("baseName[i]") всегда i —
+        //    раньше кадры, которым требовался паддинг, попадали под
+        //    ПЕРЕВЁРНУТЫЙ индекс (frames.size()-1-i), а кадры без паддинга —
+        //    под обычный, из-за чего порядок кадров перемешивался, стоило
+        //    хотя бы одному кадру отличаться размером от остальных.
         for (int i = 0; i < frames.size(); i++) {
             BufferedImage src = frames.get(i);
             int w = src.getWidth();
             int h = src.getHeight();
 
+            BufferedImage stored;
             if (w == maxW && h == maxH) {
-                assets.put(baseName + "[" + i + "]", src);
+                stored = src;
             } else {
                 BufferedImage padded = new BufferedImage(
                         maxW, maxH, BufferedImage.TYPE_INT_ARGB);
 
                 Graphics2D g = padded.createGraphics();
                 try {
-                    // Центрируем по X и по Y
+                    // По X центрируем, по Y прижимаем к низу ("ноги" на
+                    // одной высоте у всех кадров, а не "прыгают" при смене
+                    // кадра из-за паддинга по центру).
                     int dx = (maxW - w) / 2;
-                    int dy = (maxH - h) / 2;
+                    int dy = maxH - h;
                     g.drawImage(src, dx, dy, null);
                 } finally {
                     g.dispose();
                 }
-                frames.set(i, padded);
-                assets.put(baseName + "[" + (frames.size()-1-i) + "]", padded);
+                stored = padded;
             }
 
+            assets.put(baseName + "[" + i + "]", stored);
             System.out.println(baseName + "[" + i + "]:" + maxW + "x" + maxH
                     + " (source was " + w + "x" + h + ")");
         }
@@ -251,6 +279,36 @@ public class AssetStorage {
         if (maxX < 0) return src; // image is entirely background
 
         // Use TYPE_INT_ARGB so transparency survives sub-imaging
+        BufferedImage result = new BufferedImage(maxX - minX + 1, maxY - minY + 1,
+                                                 BufferedImage.TYPE_INT_ARGB);
+        result.getGraphics().drawImage(
+                src.getSubimage(minX, minY, maxX - minX + 1, maxY - minY + 1),
+                0, 0, null);
+        return result;
+    }
+
+    /**
+     * Same idea as {@link #trim}, but treats any fully-transparent pixel
+     * (alpha == 0) as "background" instead of matching a solid colour —
+     * for art authored with real transparency rather than a chroma-key colour.
+     */
+    private BufferedImage trimTransparent(BufferedImage src) {
+        int w = src.getWidth(), h = src.getHeight();
+        int minX = w, maxX = -1, minY = h, maxY = -1;
+
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                if ((src.getRGB(x, y) >>> 24) != 0) { // alpha channel non-zero => not background
+                    if (x < minX) minX = x;
+                    if (x > maxX) maxX = x;
+                    if (y < minY) minY = y;
+                    if (y > maxY) maxY = y;
+                }
+            }
+        }
+
+        if (maxX < 0) return src; // image is entirely transparent
+
         BufferedImage result = new BufferedImage(maxX - minX + 1, maxY - minY + 1,
                                                  BufferedImage.TYPE_INT_ARGB);
         result.getGraphics().drawImage(

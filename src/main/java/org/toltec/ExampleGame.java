@@ -47,6 +47,8 @@ public class ExampleGame extends TileGameEngine {
         o.renderIntervalMs = 16;                      // ~60 FPS
         o.edgeScrollWidth = 30;
         o.edgeScrollSpeed = 8;
+        o.clickDragTolerancePx = 6;                    // small jitter still counts as a click
+        o.clickToleranceOverrideKeyCode = KeyEvent.VK_SHIFT; // hold SHIFT: any drag still counts as a click
         return o;
     }
 
@@ -82,6 +84,7 @@ public class ExampleGame extends TileGameEngine {
                         isWater                            // water blocks movement
                 );
                 // Override draw size to fill the isometric cell
+                floor.isFloor    = true; // drawn in its own full-map pass before anything else — see TileGameEngine#draw
                 floor.drawWidth  = options.cellWidth;
                 floor.drawHeight = options.cellHeight;
                 getCell(col, row).addObject(floor);
@@ -173,6 +176,13 @@ public class ExampleGame extends TileGameEngine {
     // =========================================================================
 
     public static void main(String[] args) {
+        // Must be set before any AWT/Swing class touches the toolkit, which is
+        // why this is the very first statement in main() rather than a static
+        // initializer on GameCanvas or the engine — by the time either of
+        // those classes loads, Swing may already be initialized and the
+        // property will be ignored. See GpuAcceleration for details.
+        GpuAcceleration.enable();
+
         SwingUtilities.invokeLater(() -> {
             ExampleGame engine = new ExampleGame();
             GameCanvas  canvas = new GameCanvas(engine);

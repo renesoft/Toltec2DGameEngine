@@ -43,6 +43,10 @@ public class GameCanvas extends Canvas {
 
     private final TileGameEngine engine;
 
+    // Middle-button click detection (left/right go through the engine; the
+    // engine has no notion of a middle button, so it's tracked here).
+    private int midPressX, midPressY;
+
     public GameCanvas(TileGameEngine engine) {
         this.engine = engine;
         setBackground(Color.BLACK);
@@ -57,6 +61,7 @@ public class GameCanvas extends Canvas {
                 switch (e.getButton()) {
                     case MouseEvent.BUTTON1 -> engine.mouseLeftDown(e.getX(), e.getY());
                     case MouseEvent.BUTTON3 -> engine.mouseRightDown(e.getX(), e.getY());
+                    case MouseEvent.BUTTON2 -> { midPressX = e.getX(); midPressY = e.getY(); }
                 }
             }
 
@@ -65,13 +70,22 @@ public class GameCanvas extends Canvas {
                 switch (e.getButton()) {
                     case MouseEvent.BUTTON1 -> engine.mouseLeftUp(e.getX(), e.getY());
                     case MouseEvent.BUTTON3 -> engine.mouseRightUp(e.getX(), e.getY());
+                    case MouseEvent.BUTTON2 -> {
+                        int dx = e.getX() - midPressX, dy = e.getY() - midPressY;
+                        if (dx * dx + dy * dy <= 36) // ~6px tolerance, same default as left/right
+                            engine.mouseClick(e.getX(), e.getY(), MouseEvent.BUTTON2);
+                    }
                 }
             }
 
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                engine.mouseClick(e.getX(), e.getY(), e.getButton());
-            }
+            // Note: we deliberately do NOT use AWT's native mouseClicked here.
+            // AWT only fires it when press and release happen at the *exact*
+            // same point, so a press-drag-release (e.g. someone panning
+            // slightly before letting go) was silently swallowed and never
+            // counted as a click. Click detection now happens inside the
+            // engine itself (see TileGameEngine#mouseLeftUp /
+            // #isClickGesture), which tolerates small movement and can be
+            // configured or overridden via EngineOptions.
         });
 
         // ── Mouse motion ──────────────────────────────────────────────────────
@@ -83,7 +97,7 @@ public class GameCanvas extends Canvas {
 
             @Override
             public void mouseDragged(MouseEvent e) {
-                engine.mouseDragged(e.getX(), e.getY());
+                    engine.mouseDragged(e.getX(), e.getY());
             }
         });
 

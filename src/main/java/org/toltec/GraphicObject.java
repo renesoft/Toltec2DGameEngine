@@ -16,6 +16,14 @@ public class GraphicObject {
     /** Whether this object blocks movement through its cell. */
     public boolean collision = false;
 
+    /**
+     * Marks this object as ground/floor. Floor objects are drawn in their own
+     * pass across the whole visible map before anything else, so a floor tile
+     * can never end up painted on top of a unit or prop that visually
+     * overhangs into its cell — see {@link TileGameEngine#draw}.
+     */
+    public boolean isFloor = false;
+
     /** Draw width in pixels; -1 means "use asset size". */
     public int     drawWidth  = -1;
 
@@ -24,6 +32,13 @@ public class GraphicObject {
 
     /** Vertical shift in pixels (positive = down, negative = up). */
     public int     yOffset    = 0;
+
+    /**
+     * Horizontal shift in pixels (positive = right, negative = left).
+     * Used e.g. by {@link Unit} to slide smoothly between cells while
+     * following a {@link PathFinder} path.
+     */
+    public int     xOffset    = 0;
 
     /**
      * If {@code true}, the image is proportionally scaled so that its width
@@ -37,6 +52,25 @@ public class GraphicObject {
      */
     public double  fitScale   = 1.0;
 
+    /**
+     * Multiplies a {@link Unit}'s movement speed while it's standing on this
+     * object's cell — only meaningful for {@link #isFloor} objects (see
+     * {@link MapCell#getFloorObject()} / {@link Unit#tick()}). {@code 1.0} =
+     * normal speed, {@code 0.5} = half speed (e.g. mud/dirt), etc. Set from
+     * {@link TileTextureConfig} for floor tiles built via
+     * {@link TileTextureConfig#createFloorObject}.
+     */
+    public double speedMultiplier = 1.0;
+
+    /**
+     * Damage per second applied to any {@link Damageable} {@link Unit}
+     * standing on this object's cell — only meaningful for {@link #isFloor}
+     * objects. {@code 0} = no environmental damage. Set from
+     * {@link TileTextureConfig} for floor tiles built via
+     * {@link TileTextureConfig#createFloorObject}.
+     */
+    public double damagePerSecond = 0.0;
+
     // ── Animation state ───────────────────────────────────────────────────────
 
     private boolean animated           = false;
@@ -45,6 +79,8 @@ public class GraphicObject {
     private int     currentFrame       = 0;
     private int     frameIntervalTicks = 5;
     private int     ticksSinceChange   = 0;
+    private int     frameIntervalMs    = 0;   // > 0 => fixed wall-clock frame speed, overrides ticks
+    private long    lastFrameTimeNs    = -1;
     private boolean isometric          = false;
 
     // =========================================================================
@@ -88,17 +124,45 @@ public class GraphicObject {
         this.animBaseName       = baseName;
         this.frameCount         = frameCount;
         this.frameIntervalTicks = Math.max(1, frameIntervalTicks);
+        this.frameIntervalMs    = 0;
+        resetAnimation();
+    }
+
+    /**
+     * Same as {@link #setupAnimation(String, int, int)} but frames advance on a fixed
+     * wall-clock schedule ({@code frameIntervalMs} ms per frame) instead of every N
+     * logic ticks — so playback speed is independent of {@code EngineOptions#tickIntervalMs}.
+     */
+    public void setupAnimationMs(String baseName, int frameCount, int frameIntervalMs) {
+        if (frameCount <= 0) throw new IllegalArgumentException("frameCount must be > 0");
+        this.animated           = true;
+        this.animBaseName       = baseName;
+        this.frameCount         = frameCount;
+        this.frameIntervalMs    = Math.max(1, frameIntervalMs);
         resetAnimation();
     }
 
     public void resetAnimation() {
         currentFrame      = 0;
         ticksSinceChange  = 0;
+        lastFrameTimeNs   = -1;
         if (animated) imageName = animBaseName + "[0]";
     }
 
     public void tick() {
         if (!animated || frameCount <= 1) return;
+
+        if (frameIntervalMs > 0) {
+            long now = System.nanoTime();
+            if (lastFrameTimeNs < 0) lastFrameTimeNs = now;
+            long elapsedMs = (now - lastFrameTimeNs) / 1_000_000L;
+            if (elapsedMs < frameIntervalMs) return;
+            lastFrameTimeNs = now;
+            currentFrame = (currentFrame + 1) % frameCount;
+            imageName    = animBaseName + "[" + currentFrame + "]";
+            return;
+        }
+
         if (++ticksSinceChange >= frameIntervalTicks) {
             ticksSinceChange = 0;
             currentFrame     = (currentFrame + 1) % frameCount;
