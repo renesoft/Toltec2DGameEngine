@@ -48,7 +48,7 @@ public class AssetStorage {
     public void loadImage(String name, String path, Color bgColor) throws IOException {
         BufferedImage raw = ImageIO.read(new File(path));
         if (raw == null) throw new IOException("Cannot read image: " + path);
-        assets.put(name, bgColor != null ? trim(raw, bgColor) : toRGB(raw));
+        assets.put(name, accelerate(bgColor != null ? trim(raw, bgColor) : toRGB(raw)));
     }
 
     /**
@@ -59,7 +59,7 @@ public class AssetStorage {
                 getClass().getResourceAsStream(resource), "Resource not found: " + resource);
         BufferedImage raw = ImageIO.read(is);
         if (raw == null) throw new IOException("Cannot decode resource: " + resource);
-        assets.put(name, bgColor != null ? trim(raw, bgColor) : toRGB(raw));
+        assets.put(name, accelerate(bgColor != null ? trim(raw, bgColor) : toRGB(raw)));
     }
 
     /**
@@ -79,7 +79,7 @@ public class AssetStorage {
                 getClass().getResourceAsStream(resource), "Resource not found: " + resource);
         BufferedImage raw = ImageIO.read(is);
         if (raw == null) throw new IOException("Cannot decode resource: " + resource);
-        assets.put(name, trimTransparent(toRGB(raw)));
+        assets.put(name, accelerate(trimTransparent(toRGB(raw))));
     }
 
     /**
@@ -110,10 +110,13 @@ public class AssetStorage {
     }
 
     /**
-     * Store a pre-built image directly.
+     * Store a pre-built image directly. Note the image is copied into a
+     * GPU-friendly managed image (see {@link #accelerate}) rather than
+     * stored by reference — mutating the {@code BufferedImage} you passed in
+     * afterwards will not affect what's drawn.
      */
     public void put(String name, BufferedImage image) {
-        assets.put(name, image);
+        assets.put(name, accelerate(image));
     }
 
     // =========================================================================
@@ -196,7 +199,7 @@ public class AssetStorage {
                 stored = padded;
             }
 
-            assets.put(baseName + "[" + i + "]", stored);
+            assets.put(baseName + "[" + i + "]", accelerate(stored));
             System.out.println(baseName + "[" + i + "]:" + maxW + "x" + maxH
                     + " (source was " + w + "x" + h + ")");
         }
@@ -343,5 +346,42 @@ public class AssetStorage {
                                               BufferedImage.TYPE_INT_ARGB);
         dst.getGraphics().drawImage(src, 0, 0, null);
         return dst;
+    }
+
+    /**
+     * Copies {@code img} into a "managed" image tied to the default
+     * screen's {@link GraphicsConfiguration} — the only kind of image
+     * Java2D's hardware pipelines (OpenGL/Direct3D, see
+     * {@link GpuAcceleration}) can actually blit with the GPU.
+     * <p>
+     * Every helper above ({@code trim}, {@code toRGB}, {@code ImageIO.read}
+     * itself, {@code getSubimage}, …) produces a plain, unmanaged
+     * {@code BufferedImage}. That's fine for the pixel-level scanning they
+     * do (getRGB/trimming), but an unmanaged image is <em>never</em>
+     * GPU-accelerated for {@code drawImage} no matter which pipeline is
+     * active — Java2D can only hand a blit to the GPU when both the source
+     * and destination are managed/compatible images. Since every sprite is
+     * drawn hundreds of times a frame onto the engine's backbuffer (which
+     * {@link TileGameEngine#draw} now also allocates as a compatible
+     * image), doing this one-time copy at load time is what actually lets
+     * that later per-frame blit run on the GPU instead of being silently
+     * rasterized on the CPU regardless of the pipeline flags.
+     */
+    private static BufferedImage accelerate(BufferedImage img) {
+        try {
+            GraphicsConfiguration gc = GraphicsEnvironment.getLocalGraphicsEnvironment()
+                    .getDefaultScreenDevice().getDefaultConfiguration();
+            BufferedImage managed = gc.createCompatibleImage(
+                    Math.max(1, img.getWidth()), Math.max(1, img.getHeight()), Transparency.TRANSLUCENT);
+            Graphics2D g = managed.createGraphics();
+            try {
+                g.drawImage(img, 0, 0, null);
+            } finally {
+                g.dispose();
+            }
+            return managed;
+        } catch (HeadlessException e) {
+            return img; // no display available (headless run/tests) — keep the plain image
+        }
     }
 }

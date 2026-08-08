@@ -64,7 +64,7 @@ public class UnitDemoGame extends TileGameEngine {
         o.cellHeight       = 32;
         o.viewType         = EngineOptions.ViewType.ISOMETRIC;
         o.tickIntervalMs   = 6;
-        o.renderIntervalMs = 16;
+        o.renderIntervalMs = 1;
         return o;
     }
 
@@ -144,7 +144,7 @@ public class UnitDemoGame extends TileGameEngine {
             if (button != MouseEvent.BUTTON1) return;
 
             if (unit == player) {
-                setPlayerSelected(!playerSelected);
+                setPlayerSelected(/*!playerSelected*/true);
                 return;
             }
 

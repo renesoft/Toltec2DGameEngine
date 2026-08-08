@@ -1,20 +1,13 @@
 package org.toltec;
 
-import java.awt.BasicStroke;
-import java.awt.Color;
-import java.awt.Font;
-import java.awt.FontMetrics;
-import java.awt.Graphics2D;
-import java.awt.Image;
-import java.awt.RenderingHints;
-import java.awt.Shape;
-import java.awt.Stroke;
+import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.GeneralPath;
 import java.awt.geom.RoundRectangle2D;
 import java.awt.image.BufferedImage;
+import java.awt.image.VolatileImage;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -121,7 +114,8 @@ public abstract class TileGameEngine {
     // "everything looks like the resolution dropped, it's all blocky" report
     // means. bg.scale(bufferScaleX, bufferScaleY) below lets every existing
     // draw call keep working in logical canvasW×canvasH coordinates.
-    private BufferedImage buffer;
+    private VolatileImage buffer;
+    private boolean bufferAccelerated = false; // true once buffer was allocated via a real GraphicsConfiguration — see ensureBuffer
     private double bufferScaleX = 1.0, bufferScaleY = 1.0;
 
     // ── Camera zoom ───────────────────────────────────────────────────────────
@@ -140,6 +134,11 @@ public abstract class TileGameEngine {
     private record UnitBounds(Unit unit, String imageName, int x, int y, int w, int h) {
         boolean contains(int px, int py) {
             return px >= x && px < x + w && py >= y && py < y + h;
+        }
+        long centerDistSq(int px, int py) {
+            long dx = (x + w / 2L) - px;
+            long dy = (y + h / 2L) - py;
+            return dx * dx + dy * dy;
         }
     }
     private List<UnitBounds>         buildingUnitBounds = Collections.emptyList();
@@ -252,12 +251,28 @@ public abstract class TileGameEngine {
      * the most recently rendered frame — see {@link UnitBounds}.
      */
     public Unit unitAt(int sx, int sy) {
-        List<UnitBounds> bounds = frameUnitBounds;
+        /*List<UnitBounds> bounds = frameUnitBounds;
         for (int i = bounds.size() - 1; i >= 0; i--) {
             UnitBounds b = bounds.get(i);
             if (b.contains(sx, sy)) return b.unit();
         }
-        return null;
+        return null;*/
+        return bestUnitAt(sx, sy, null);
+    }
+    private Unit bestUnitAt(int sx, int sy, Unit exclude) {
+        List<UnitBounds> bounds = frameUnitBounds;
+        UnitBounds best = null;
+        long bestDistSq = Long.MAX_VALUE;
+        for (UnitBounds b : bounds) {
+            if (b.unit() == exclude) continue;
+            if (!b.contains(sx, sy)) continue;
+            long d = b.centerDistSq(sx, sy);
+            if (d < bestDistSq) {
+                bestDistSq = d;
+                best = b;
+            }
+        }
+        return best == null ? null : best.unit();
     }
 
     /**
@@ -682,8 +697,37 @@ public abstract class TileGameEngine {
         int physW = Math.max(1, (int) Math.ceil(canvasW * sx));
         int physH = Math.max(1, (int) Math.ceil(canvasH * sy));
 
-        if (buffer == null || buffer.getWidth() != physW || buffer.getHeight() != physH) {
-            buffer = new BufferedImage(physW, physH, BufferedImage.TYPE_INT_RGB);
+        GraphicsConfiguration gcNow = canvas != null ? canvas.getGraphicsConfiguration() : null;
+        // Reallocate not just on a size change but also the first time the
+        // canvas's GraphicsConfiguration becomes available — the very first
+        // frame or two can arrive before the canvas is actually showing
+        // (gc == null), forcing the software fallback below; once it's
+        // showing we want to swap up to the accelerated buffer rather than
+        // being stuck on the fallback for the rest of the run.
+        if (buffer == null || buffer.getWidth() != physW || buffer.getHeight() != physH
+                || (!bufferAccelerated && gcNow != null)) {
+            // IMPORTANT for GPU acceleration (see GpuAcceleration): a plain
+            // `new BufferedImage(...)` is always an unmanaged/"custom"
+            // raster, and Java2D's OpenGL/Direct3D pipelines can only
+            // hardware-blit *managed* images tied to a GraphicsConfiguration
+            // — an unmanaged buffer is rasterized on the CPU no matter which
+            // pipeline is active. Allocating through the canvas's own
+            // GraphicsConfiguration (available once it's showing on screen)
+            // is what actually lets every drawImage() onto this buffer run
+            // on the GPU; every hundreds-of-tiles-per-frame draw in
+            // renderTopDown/renderIsometric targets this buffer, so this is
+            // the backbuffer half of getting real acceleration — the other
+            // half is loading sprites the same way, see
+            // AssetStorage#accelerate.
+            try {
+                buffer = gcNow != null
+                        ? gcNow.createCompatibleVolatileImage(physW, physH, new ImageCapabilities(true)) : null;
+                        //? gcNow.createCompatibleImage(physW, physH, Transparency.OPAQUE)
+                        //: new BufferedImage(physW, physH, BufferedImage.TYPE_INT_RGB); // canvas not yet showing — fall back, retried next frame
+            } catch (AWTException e) {
+                throw new RuntimeException(e);
+            }
+            bufferAccelerated = gcNow != null;
         }
         bufferScaleX = sx;
         bufferScaleY = sy;
