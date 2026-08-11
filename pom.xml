@@ -5,13 +5,64 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>org.toltec</groupId>
-    <artifactId>ToltecGameEngine</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <artifactId>object-editor</artifactId>
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
 
     <properties>
-        <maven.compiler.source>21</maven.compiler.source>
-        <maven.compiler.target>21</maven.compiler.target>
+        <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <javafx.version>21.0.4</javafx.version>
     </properties>
 
+    <dependencies>
+        <!-- UI toolkit for the editor itself -->
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-controls</artifactId>
+            <version>${javafx.version}</version>
+        </dependency>
+        <!-- SwingNode + the engine's own GameCanvas (a JPanel), embedded in the center preview cell -->
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-swing</artifactId>
+            <version>${javafx.version}</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+            </plugin>
+
+            <!-- `mvn javafx:run` — launches the object editor directly -->
+            <plugin>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-maven-plugin</artifactId>
+                <version>0.0.8</version>
+                <configuration>
+                    <mainClass>org.toltec.editor.Launcher</mainClass>
+                </configuration>
+            </plugin>
+
+            <!-- `mvn package` / `java -jar` — a runnable jar for everything else
+                 (the demo games, TileCutter, etc; run a specific main class with
+                 `java -cp target/classes:... org.toltec.demo.UnitDemoGame` or similar). -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.4.1</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <mainClass>org.toltec.editor.Launcher</mainClass>
+                        </manifest>
+                    </archive>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>
