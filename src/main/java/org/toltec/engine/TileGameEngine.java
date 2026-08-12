@@ -192,7 +192,7 @@ public abstract class TileGameEngine {
             for (int c = 0; c < options.mapWidthCells; c++)
                 map[r][c] = new MapCell();
 
-        viewCenterX = mapPixelWidth()  / 2.0;
+        viewCenterX = (mapPixelMinX() + mapPixelMaxX()) / 2.0;
         viewCenterY = mapPixelHeight() / 2.0;
     }
 
@@ -211,6 +211,18 @@ public abstract class TileGameEngine {
     }
 
     public void stop() { running = false; }
+
+    /** Current physical canvas width in pixels, kept in sync on every resize/render pass. */
+    public int getCanvasW() { return canvasW; }
+
+    /** Current physical canvas height in pixels, kept in sync on every resize/render pass. */
+    public int getCanvasH() { return canvasH; }
+
+    /** Last known mouse X in screen pixels, updated by every {@link #mouseMove}/{@link #mouseDragged} call. */
+    public int getMouseX() { return mouseX; }
+
+    /** Last known mouse Y in screen pixels, updated by every {@link #mouseMove}/{@link #mouseDragged} call. */
+    public int getMouseY() { return mouseY; }
 
     public void pause()       { paused = true; }
     public void resume()      { paused = false; }
@@ -442,7 +454,7 @@ public abstract class TileGameEngine {
     public double getViewCenterY() { synchronized (viewLock) { return viewCenterY; } }
 
     private double clampViewX(double x) {
-        return Math.max(0, Math.min(mapPixelWidth(),  x));
+        return Math.max(mapPixelMinX(), Math.min(mapPixelMaxX(), x));
     }
     private double clampViewY(double y) {
         return Math.max(0, Math.min(mapPixelHeight(), y));
@@ -499,17 +511,39 @@ public abstract class TileGameEngine {
                 row * (double) options.cellHeight};
     }
 
+    /**
+     * Inverse of {@link #renderTopDown}/{@link #renderIsometric}'s cell
+     * placement — deliberately does NOT go through the continuous
+     * {@link #screenToMapPixel} (which divides by the raw {@code zoom}
+     * double). The renderers place cells on an integer grid anchored at
+     * {@code mapPixelToScreen(0,0)} with a *rounded* per-cell step
+     * ({@code screenCw = round(cellWidth * zoom)}) specifically to avoid
+     * sub-pixel gaps between neighbouring tiles (see the comment in
+     * renderTopDown). If picking used the unrounded continuous math instead,
+     * the two would drift apart by a growing number of pixels the further a
+     * cell sits from the anchor — harmless-looking off-by-one-cell clicks
+     * near the edges of any reasonably large map. Mirroring the exact same
+     * rounded-step grid here keeps "what you see" and "what you click"
+     * pixel-identical everywhere on screen, at any zoom.
+     */
     public int[] screenToCell(int sx, int sy) {
-        double[] mp = screenToMapPixel(sx, sy);
+        int screenCw = (int) Math.round(options.cellWidth  * zoom);
+        int screenCh = (int) Math.round(options.cellHeight * zoom);
+        if (screenCw <= 0) screenCw = 1;
+        if (screenCh <= 0) screenCh = 1;
+        int[] origin = mapPixelToScreen(0, 0);
+
         int col, row;
         if (options.viewType == EngineOptions.ViewType.ISOMETRIC) {
-            double a = mp[0] * 2.0 / options.cellWidth;
-            double b = mp[1] * 2.0 / options.cellHeight;
+            int halfW = Math.max(1, screenCw / 2);
+            int halfH = Math.max(1, screenCh / 2);
+            double a = (sx - origin[0]) / (double) halfW; // = col - row
+            double b = (sy - origin[1]) / (double) halfH; // = col + row
             col = (int) Math.floor((a + b) / 2.0);
             row = (int) Math.floor((b - a) / 2.0);
         } else {
-            col = (int) Math.floor(mp[0] / options.cellWidth);
-            row = (int) Math.floor(mp[1] / options.cellHeight);
+            col = Math.floorDiv(sx - origin[0], screenCw);
+            row = Math.floorDiv(sy - origin[1], screenCh);
         }
         if (!isCellValid(col, row)) return new int[]{-1, -1};
         return new int[]{col, row};
@@ -547,6 +581,37 @@ public abstract class TileGameEngine {
         if (options.viewType == EngineOptions.ViewType.ISOMETRIC)
             return (options.mapWidthCells + options.mapHeightCells) * (options.cellHeight / 2.0);
         return options.mapHeightCells * (double) options.cellHeight;
+    }
+
+    /**
+     * Left/right map-pixel bounds the camera center is allowed to reach.
+     * For TOP_DOWN this is simply [0, mapPixelWidth()] — cellToMapPixel's X
+     * already starts at 0. For ISOMETRIC, cellToMapPixel's X = (col-row)*cw/2
+     * ranges from -(mapHeightCells-1)*cw/2 (col=0, row=max — the map's west
+     * corner) to +(mapWidthCells-1)*cw/2 + cellWidth (col=max, row=0 — the
+     * east corner, plus one full cell width since that's where the cell's
+     * own rendered box ends, not just its anchor point). mapPixelWidth() is
+     * only the *span* of that range, not its lower bound — clamping to
+     * [0, mapPixelWidth()] as if it were [minX, maxX] silently cut off the
+     * entire negative-X half of the diamond, which is why the west/
+     * south-west corner was permanently unreachable no matter the zoom
+     * level (see clampViewX).
+     * <p>
+     * Y is unaffected: cellToMapPixel's Y = (col+row)*ch/2 already starts at
+     * 0 (col=0,row=0) for both view types, so [0, mapPixelHeight()] was
+     * already the correct range — only X needed splitting into a real
+     * min/max.
+     */
+    private double mapPixelMinX() {
+        if (options.viewType == EngineOptions.ViewType.ISOMETRIC)
+            return -(options.mapHeightCells - 1) * (options.cellWidth / 2.0);
+        return 0;
+    }
+
+    private double mapPixelMaxX() {
+        if (options.viewType == EngineOptions.ViewType.ISOMETRIC)
+            return (options.mapWidthCells - 1) * (options.cellWidth / 2.0) + options.cellWidth;
+        return options.mapWidthCells * (double) options.cellWidth;
     }
 
     // =========================================================================
@@ -741,8 +806,8 @@ public abstract class TileGameEngine {
             try {
                 buffer = gcNow != null
                         ? gcNow.createCompatibleVolatileImage(physW, physH, new ImageCapabilities(true)) : null;
-                        //? gcNow.createCompatibleImage(physW, physH, Transparency.OPAQUE)
-                        //: new BufferedImage(physW, physH, BufferedImage.TYPE_INT_RGB); // canvas not yet showing — fall back, retried next frame
+                //? gcNow.createCompatibleImage(physW, physH, Transparency.OPAQUE)
+                //: new BufferedImage(physW, physH, BufferedImage.TYPE_INT_RGB); // canvas not yet showing — fall back, retried next frame
             } catch (AWTException e) {
                 throw new RuntimeException(e);
             }
@@ -1080,6 +1145,92 @@ public abstract class TileGameEngine {
         }
     }
 
+    /**
+     * Draws a translucent preview of {@code obj} exactly where it would land
+     * if actually placed at (col,row) right now — same integer anchor-plus-
+     * step placement math {@link #renderTopDown}/{@link #renderIsometric}
+     * use (and {@link #screenToCell} inverts), so the ghost is pixel-
+     * identical to the real tile the moment it's committed. Doesn't touch
+     * the map or document, and — unlike {@link #renderCell} — doesn't record
+     * unit hit-bounds, draw health bars, or draw movement trajectories: it's
+     * a preview, not a placed object.
+     */
+    public void renderPreview(Graphics2D gfx, GraphicObject obj, int col, int row, float alpha) {
+        if (obj == null || !isCellValid(col, row)) return;
+
+        int screenCw = (int) Math.round(options.cellWidth  * zoom);
+        int screenCh = (int) Math.round(options.cellHeight * zoom);
+        if (screenCw <= 0) screenCw = 1;
+        if (screenCh <= 0) screenCh = 1;
+
+        int[] origin = mapPixelToScreen(0, 0);
+        int sx, sy;
+        if (options.viewType == EngineOptions.ViewType.ISOMETRIC) {
+            sx = origin[0] + (col - row) * (screenCw / 2);
+            sy = origin[1] + (col + row) * (screenCh / 2);
+        } else {
+            sx = origin[0] + col * screenCw;
+            sy = origin[1] + row * screenCh;
+        }
+
+        Image img = assets.get(obj.imageName);
+        if (img == null) return; // no placeholder box for a ghost — just skip silently
+
+        int imgW = img.getWidth(null), imgH = img.getHeight(null);
+        if (imgW <= 0 || imgH <= 0) return;
+
+        int dw, dh;
+        if (obj.fitToCell) {
+            double targetW = screenCw * obj.fitScale * footprintWidthFactor(obj);
+            dw = (int) Math.round(targetW);
+            dh = (int) Math.round(targetW * imgH / (double) imgW);
+        } else {
+            double baseW = obj.drawWidth  > 0 ? obj.drawWidth  : imgW;
+            double baseH = obj.drawHeight > 0 ? obj.drawHeight : imgH;
+            dw = (int) Math.round(baseW * zoom);
+            dh = (int) Math.round(baseH * zoom);
+        }
+        if (dw <= 0 || dh <= 0) return;
+
+        int footprintDrop = footprintDrop(obj, screenCh);
+        int scaledXOffset = (int) Math.round(obj.xOffset * zoom);
+        int scaledYOffset = (int) Math.round(obj.yOffset * zoom);
+
+        Composite oldComposite = gfx.getComposite();
+        gfx.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, Math.max(0f, Math.min(1f, alpha))));
+        try {
+            if (obj.isFloor) {
+                if (options.viewType == EngineOptions.ViewType.ISOMETRIC) {
+                    gfx.drawImage(img, sx - screenCw / 2, sy, screenCw, screenCh, null);
+                } else {
+                    gfx.drawImage(img, sx, sy, screenCw, screenCh, null);
+                }
+            } else if (options.viewType == EngineOptions.ViewType.ISOMETRIC && obj.isIsometric()) {
+                int dx = sx - dw / 2 + scaledXOffset;
+                int dy = sy + screenCh / 2 - dh + scaledYOffset + footprintDrop;
+                gfx.drawImage(img, dx, dy, dw, dh, null);
+            } else if (options.viewType == EngineOptions.ViewType.ISOMETRIC) {
+                double cx = sx + scaledXOffset;
+                double cy = sy + screenCh / 2.0 + scaledYOffset + footprintDrop;
+                AffineTransform old = gfx.getTransform();
+                AffineTransform at = new AffineTransform();
+                at.translate(cx, cy);
+                at.rotate(Math.toRadians(45));
+                at.scale(1.0, 0.5);
+                at.translate(-dw / 2.0, -dh / 2.0);
+                gfx.setTransform(at);
+                gfx.drawImage(img, 0, 0, dw, dh, null);
+                gfx.setTransform(old);
+            } else {
+                int dx = sx + (screenCw - dw) / 2 + scaledXOffset;
+                int dy = sy + screenCh - dh + scaledYOffset + footprintDrop;
+                gfx.drawImage(img, dx, dy, dw, dh, null);
+            }
+        } finally {
+            gfx.setComposite(oldComposite);
+        }
+    }
+
     /** Records this frame's on-screen bounds (and source image, for silhouette outlines) for a rendered unit — see {@link #unitAt}. */
     private void recordUnitBounds(Unit u, String imageName, int x, int y, int w, int h) {
         buildingUnitBounds.add(new UnitBounds(u, imageName, x, y, Math.max(1, w), Math.max(1, h)));
@@ -1110,8 +1261,8 @@ public abstract class TileGameEngine {
         gfx.fillRect(x, y, barW, barH);
 
         Color fill = pct > 0.5 ? new Color(60, 200, 60)
-                   : pct > 0.25 ? new Color(230, 180, 40)
-                                : new Color(210, 50, 50);
+                : pct > 0.25 ? new Color(230, 180, 40)
+                  : new Color(210, 50, 50);
         gfx.setColor(fill);
         gfx.fillRect(x, y, (int) Math.round(barW * pct), barH);
 

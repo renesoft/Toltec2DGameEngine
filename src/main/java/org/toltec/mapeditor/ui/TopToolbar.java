@@ -1,14 +1,17 @@
 package org.toltec.mapeditor.ui;
 
+import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.DoubleProperty;
 import javafx.beans.property.IntegerProperty;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleObjectProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.ChoiceBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Separator;
@@ -33,6 +36,7 @@ public class TopToolbar extends HBox {
     private final IntegerProperty brushSize = new SimpleIntegerProperty(1);
     /** 0.0–1.0. */
     private final DoubleProperty probability = new SimpleDoubleProperty(1.0);
+    private final BooleanProperty showGrid = new SimpleBooleanProperty(true);
 
     private final Label directionLabel = new Label("S");
     private final Label statusLabel = new Label();
@@ -113,6 +117,10 @@ public class TopToolbar extends HBox {
 
         statusLabel.getStyleClass().add("hint-label");
 
+        CheckBox gridCheck = new CheckBox("Сетка");
+        gridCheck.selectedProperty().bindBidirectional(showGrid);
+        Tooltip.install(gridCheck, new Tooltip("Показывать лёгкую сетку поверх пустых клеток"));
+
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
@@ -120,7 +128,7 @@ public class TopToolbar extends HBox {
                 newBtn, saveBtn, loadBtn, new Separator(javafx.geometry.Orientation.VERTICAL),
                 floorBtn, unitBtn, objectBtn, eraserBtn, eraseModeBox,
                 new Separator(javafx.geometry.Orientation.VERTICAL),
-                brushLabel, brushSpinner, probBox, dirBox,
+                brushLabel, brushSpinner, probBox, dirBox, gridCheck,
                 spacer, statusLabel
         );
 
@@ -146,6 +154,7 @@ public class TopToolbar extends HBox {
     public IntegerProperty brushSizeProperty() { return brushSize; }
     /** 0.0–1.0 chance a unit/object actually gets stamped into each brushed cell. */
     public DoubleProperty probabilityProperty() { return probability; }
+    public BooleanProperty showGridProperty() { return showGrid; }
 
     public void setDirection(Direction8 d) { directionLabel.setText(d.name()); }
 

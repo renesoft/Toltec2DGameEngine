@@ -12,7 +12,6 @@ import org.toltec.unit.Unit;
 
 import java.awt.Color;
 import java.awt.Graphics2D;
-import java.awt.geom.Path2D;
 
 /**
  * Live engine backing the map editor's canvas. Doesn't know anything about
@@ -52,6 +51,18 @@ public class MapEditorEngine extends TileGameEngine {
     /** Whether the light per-cell grid overlay draws — on by default, useful while editing an empty map. */
     public volatile boolean showGrid = true;
 
+    /**
+     * The object currently shown as a translucent "ghost" following the
+     * cursor — set by {@link #setPreviewFloor}/{@link #setPreviewObject}/
+     * {@link #setPreviewUnit}, cleared by {@link #clearPreview}. Never added
+     * to a {@link MapCell} or the document; it only exists for {@link #onDraw}
+     * to render each frame at whatever cell the mouse is currently over.
+     */
+    private volatile GraphicObject previewObject;
+
+    /** Opacity the ghost preview draws at — tweak to taste. */
+    public volatile float previewAlpha = 0.55f;
+
     public MapEditorEngine(EngineOptions options) {
         super(options);
         this.document = new MapDocument(options.mapWidthCells, options.mapHeightCells,
@@ -72,6 +83,48 @@ public class MapEditorEngine extends TileGameEngine {
         // Nothing extra — MapCell.tick() (called automatically every logic
         // tick) already advances each placed object/unit's own idle animation.
     }
+
+    // =========================================================================
+    // Cursor-follow preview ("ghost") — shows what a click will place, before
+    // it's actually placed. Committing still happens the existing way: the
+    // controller listens for onStrokeStart/onStrokeDrag and calls
+    // setFloor/placeObject/placeUnit as before. This just draws a preview.
+    // =========================================================================
+
+    /** Shows a translucent preview of {@code entry}'s floor, following the cursor. */
+    public void setPreviewFloor(PaletteEntry entry) {
+        if (entry == null || entry.floorConfig == null) { clearPreview(); return; }
+        GraphicObject ghost = entry.floorConfig.createFloorObject(entry.floorType, -1, -1);
+        ghost.drawWidth = options.cellWidth;
+        ghost.drawHeight = options.cellHeight;
+        ghost.tick(); // primes imageName/animation frame — never added to a MapCell, so never ticks otherwise
+        previewObject = ghost;
+    }
+
+    /** Shows a translucent preview of {@code entry} as an object facing {@code direction}, following the cursor. */
+    public void setPreviewObject(PaletteEntry entry, Direction8 direction) {
+        if (entry == null || entry.objectConfig == null) { clearPreview(); return; }
+        var clip = entry.objectConfig.resolve(entry.objectState, direction);
+        GraphicObject ghost = clip != null
+                ? new org.toltec.editor.preview.AnimatedPreviewObject(clip)
+                : new GraphicObject("");
+        entry.objectConfig.applyTo(ghost);
+        ghost.tick(); // primes imageName/animation frame — never added to a MapCell, so never ticks otherwise
+        previewObject = ghost;
+    }
+
+    /** Shows a translucent preview of {@code entry} as a unit facing {@code direction}, following the cursor. */
+    public void setPreviewUnit(PaletteEntry entry, Direction8 direction) {
+        if (entry == null || entry.unitConfig == null) { clearPreview(); return; }
+        Unit ghost = new Unit(entry.unitConfig, entry.gender, entry.weapon);
+        ghost.setDirection(direction);
+        ghost.setIsometricType(options.viewType == EngineOptions.ViewType.ISOMETRIC);
+        ghost.tick(); // primes imageName/animation frame — never added to a MapCell, so never ticks otherwise
+        previewObject = ghost;
+    }
+
+    /** Hides the cursor-follow preview — call when the palette selection is cleared, or an erase tool is active. */
+    public void clearPreview() { previewObject = null; }
 
     // =========================================================================
     // Paint-stroke mouse handling
@@ -248,12 +301,28 @@ public class MapEditorEngine extends TileGameEngine {
 
     @Override
     protected void onDraw(Graphics2D gfx) {
-        if (showGrid) return;
-
         double z = getZoom();
-        java.awt.Rectangle clip = gfx.getClipBounds();
-        int w = clip != null ? clip.width : 800;
-        int h = clip != null ? clip.height : 600;
+        int w = getCanvasW();
+        int h = getCanvasH();
+
+        if (showGrid) drawGridOverlay(gfx, z, w, h);
+
+        // Cursor-follow ghost preview — drawn last so it sits on top of the grid.
+        GraphicObject ghost = previewObject;
+        if (ghost != null) {
+            int[] hover = screenToCell(getMouseX(), getMouseY());
+            System.out.println("[preview] mouse=" + getMouseX() + "," + getMouseY()
+                    + " hoverCell=" + hover[0] + "," + hover[1]
+                    + " image=" + ghost.imageName + " loaded=" + (assets.get(ghost.imageName) != null));
+            if (hover[0] >= 0) renderPreview(gfx, ghost, hover[0], hover[1], previewAlpha);
+        }
+    }
+
+    private void drawGridOverlay(Graphics2D gfx, double z, int w, int h) {
+        // w/h are the engine's actual physical canvas size (see onDraw) —
+        // deliberately not gfx.getClipBounds(): on a freshly created
+        // Graphics2D (from buffer.createGraphics()) no clip is set, so
+        // getClipBounds() returns null almost always.
 
         // screenToCell() rejects anything outside the map (returns {-1,-1}) —
         // fine for mouse-click purposes, but useless here for sizing the
@@ -277,27 +346,71 @@ public class MapEditorEngine extends TileGameEngine {
 
         gfx.setColor(new Color(255, 255, 255, 40));
         boolean iso = options.viewType == EngineOptions.ViewType.ISOMETRIC;
-        double halfW = options.cellWidth * z / 2.0;
-        double halfH = options.cellHeight * z / 2.0;
+
+        // Must match TileGameEngine.renderIsometric/renderTopDown's own
+        // screenCw/screenCh exactly (round cellWidth/cellHeight * zoom
+        // FIRST, then halve) — halving options.cellWidth/cellHeight*z
+        // directly, as this used to, rounds at a different point and can
+        // land the grid a pixel off from the real tile edges at some zoom
+        // levels.
+        int cw = (int) Math.round(options.cellWidth  * z);
+        int ch = (int) Math.round(options.cellHeight * z);
+        int halfW = cw / 2;
+        int halfH = ch / 2;
+
+        // cellToScreen(c,r) independently re-rounds ((col-row)*cellWidth/2 -
+        // viewCenterX) * zoom for every single cell — exactly the per-cell
+        // rounding TileGameEngine.renderTopDown's own comment says was
+        // replaced because two neighbouring cells can each round to the
+        // *nearest* pixel in opposite directions. That's fine for one-off
+        // lookups (hit-testing, HUD anchors) but it means the grid drifted
+        // away from the actually-rendered tile position the farther a cell
+        // sits from the camera center — barely visible on a small map,
+        // clearly visible on something like 300x300. Building every cell's
+        // anchor from ONE shared origin (cellToScreen(0,0) — equivalent to
+        // TileGameEngine's private mapPixelToScreen(0,0), since
+        // cellToMapPixel(0,0) is (0,0) in both projections) plus a constant
+        // integer step per column/row, exactly like renderIsometric/
+        // renderTopDown do internally, keeps the grid pixel-identical to
+        // the real tiles at any distance from center and any zoom.
+        int[] origin = cellToScreen(0, 0);
+
+        // Reused across every cell this frame — a fresh Path2D/array per cell
+        // (400+ of them a frame on even a modest map) was needless per-frame
+        // garbage for what's just 4 fixed points shifted to each anchor.
+        int[] xs = new int[4];
+        int[] ys = new int[4];
 
         for (int r = rowMin; r <= rowMax; r++) {
             for (int c = colMin; c <= colMax; c++) {
-                int[] anchor = cellToScreen(c, r);
-                Path2D.Double p = new Path2D.Double();
+                int sx, sy;
                 if (iso) {
-                    p.moveTo(anchor[0], anchor[1] - halfH);
-                    p.lineTo(anchor[0] + halfW, anchor[1]);
-                    p.lineTo(anchor[0], anchor[1] + halfH);
-                    p.lineTo(anchor[0] - halfW, anchor[1]);
-                    p.closePath();
+                    sx = origin[0] + (c - r) * halfW;
+                    sy = origin[1] + (c + r) * halfH;
                 } else {
-                    p.moveTo(anchor[0] - halfW, anchor[1] - halfH);
-                    p.lineTo(anchor[0] + halfW, anchor[1] - halfH);
-                    p.lineTo(anchor[0] + halfW, anchor[1] + halfH);
-                    p.lineTo(anchor[0] - halfW, anchor[1] + halfH);
-                    p.closePath();
+                    sx = origin[0] + c * cw;
+                    sy = origin[1] + r * ch;
                 }
-                gfx.draw(p);
+
+                // (sx,sy) is TileGameEngine.renderCell's own anchor: the
+                // diamond's TOP vertex in isometric (see renderCell's
+                // placeholder polygon: {sx, sx+cw/2, sx, sx-cw/2} /
+                // {sy, sy+ch/2, sy+ch, sy+ch/2}), or the rect's TOP-LEFT
+                // corner in top-down (renderCell's gfx.fillRect(sx, sy, cw,
+                // ch)) — so the outline below is built from that same point,
+                // not centered on it.
+                if (iso) {
+                    xs[0] = sx;         ys[0] = sy;
+                    xs[1] = sx + halfW; ys[1] = sy + halfH;
+                    xs[2] = sx;         ys[2] = sy + ch;
+                    xs[3] = sx - halfW; ys[3] = sy + halfH;
+                } else {
+                    xs[0] = sx;      ys[0] = sy;
+                    xs[1] = sx + cw; ys[1] = sy;
+                    xs[2] = sx + cw; ys[2] = sy + ch;
+                    xs[3] = sx;      ys[3] = sy + ch;
+                }
+                gfx.drawPolygon(xs, ys, 4);
             }
         }
     }

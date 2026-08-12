@@ -1,0 +1,63 @@
+# Toltec map file v1
+width=30
+height=30
+cellWidth=64
+cellHeight=32
+view=ISOMETRIC
+
+[FLOOR]
+0: -,-,-,-,-,planks,floors/floorFlora,floors/floorFlora3,planks,-,-,-,-,-,-,-,-,-,-,-,-,-,-,-,-,-,-,-,-,-
+1: -,-,-,-,planks,floors/glass,floors/glass,floors/floorFlora3,floors/glass,floors/glass,planks,floors/glass,floors/floorFlora,floors/floorFlora2,-,-,-,-,-,-,-,-,-,-,-,-,-,-,-,-
+2: -,-,planks,floors/floorFlora,planks,floors/floorFlora3,floors/floorFlora2,floors/floorFlora3,planks,planks,floors/glass,planks,floors/floorFlora,floors/glass,floors/glass,floors/floorFlora3,-,-,-,-,-,-,-,-,-,-,-,-,-,-
+3: -,floors/glass,floors/floorFlora3,floors/floorFlora2,floors/floorFlora,planks,floors/floorFlora,floors/floorFlora3,floors/glass,planks,floors/floorFlora2,floors/glass,floors/floorFlora,floors/glass,floors/floorFlora2,planks,-,-,-,-,-,-,-,-,-,-,-,-,-,-
+4: -,floors/floorFlora,floors/glass,planks,floors/glass,planks,planks,floors/floorFlora2,floors/floorFlora,floors/glass,floors/floorFlora2,floors/floorFlora,floors/floorFlora,floors/floorFlora3,planks,planks,-,-,-,-,-,-,-,-,-,-,-,-,-,-
+5: -,planks,planks,floors/floorFlora,floors/floorFlora2,planks,-,-,-,-,-,floors/glass,floors/glass,floors/glass,floors/floorFlora3,floors/floorFlora2,-,-,-,-,-,-,-,-,-,-,-,-,-,-
+6: -,floors/floorFlora3,floors/floorFlora3,planks,floors/floorFlora3,floors/glass,floors/glass,floors/floorFlora,floors/floorFlora3,floors/floorFlora3,floors/floorFlora,-,-,-,-,-,-,-,-,-,-,-,-,-,-,-,-,-,-,-
+7: -,-,-,-,-,floors/floorFlora3,floors/floorFlora,floors/floorFlora2,floors/floorFlora,floors/floorFlora,floors/glass,floors/floorFlora2,floors/floorFlora3,floors/floorFlora2,-,-,-,-,-,-,-,-,-,-,-,-,-,-,-,-
+8: planks,planks,planks,planks,-,floors/glass,floors/floorFlora3,floors/floorFlora2,floors/floorFlora3,floors/floorFlora3,floors/floorFlora,floors/floorFlora2,floors/floorFlora3,floors/floorFlora,-,-,floors/floorFlora,floors/floorFlora2,floors/glass,floors/floorFlora2,floors/glass,floors/glass,floors/floorFlora,-,-,-,-,-,-,-
+9: planks,planks,planks,planks,floors/glass,floors/floorFlora3,floors/floorFlora3,floors/floorFlora2,floors/floorFlora,floors/floorFlora2,floors/floorFlora2,floors/floorFlora,floors/floorFlora2,floors/floorFlora,floors/floorFlora2,floors/glass,floors/glass,floors/glass,floors/floorFlora2,floors/glass,floors/floorFlora,floors/glass,floors/floorFlora2,-,-,-,-,-,-,-
+10: planks,planks,planks,planks,floors/floorFlora2,floors/glass,floors/floorFlora,floors/floorFlora3,floors/glass,floors/floorFlora2,floors/glass,floors/floorFlora,floors/floorFlora,floors/glass,floors/glass,floors/floorFlora2,floors/glass,floors/glass,floors/glass,floors/floorFlora,floors/floorFlora2,floors/floorFlora,floors/floorFlora,-,-,-,-,-,-,-
+11: planks,planks,planks,planks,floors/glass,floors/glass,floors/floorFlora3,floors/floorFlora,floors/floorFlora,floors/floorFlora2,floors/glass,floors/floorFlora3,floors/floorFlora2,floors/floorFlora3,floors/glass,floors/floorFlora,floors/floorFlora2,floors/glass,floors/glass,floors/floorFlora,floors/floorFlora2,floors/floorFlora,floors/glass,-,-,-,-,-,-,-
+12: -,-,floors/glass,floors/glass,floors/floorFlora2,floors/glass,floors/floorFlora3,floors/floorFlora3,floors/glass,floors/floorFlora2,floors/floorFlora2,floors/glass,floors/floorFlora,floors/floorFlora,floors/glass,floors/floorFlora2,floors/floorFlora,floors/floorFlora,floors/floorFlora2,floors/floorFlora,floors/glass,-,-,-,-,-,-,-,-,-
+13: -,-,floors/floorFlora3,floors/floorFlora,floors/floorFlora2,floors/glass,floors/floorFlora2,floors/floorFlora3,floors/floorFlora2,floors/glass,floors/glass,floors/floorFlora,floors/floorFlora,floors/floorFlora2,floors/glass,floors/glass,floors/glass,floors/floorFlora,floors/glass,floors/glass,floors/floorFlora2,floors/floorFlora,-,-,-,-,-,-,-,-
+14: -,-,floors/floorFlora,floors/floorFlora3,floors/floorFlora,floors/floorFlora3,floors/floorFlora,floors/floorFlora2,floors/floorFlora,floors/floorFlora,floors/glass,floors/glass,floors/floorFlora,floors/floorFlora,floors/glass,floors/glass,floors/floorFlora3,floors/floorFlora2,floors/glass,floors/floorFlora,floors/glass,floors/floorFlora2,-,-,-,-,-,-,-,-
+15: -,floors/glass,floors/floorFlora,floors/floorFlora3,floors/floorFlora3,floors/floorFlora,floors/floorFlora,floors/floorFlora,floors/floorFlora2,floors/floorFlora2,floors/floorFlora,floors/glass,floors/floorFlora,floors/floorFlora2,floors/floorFlora3,floors/floorFlora2,floors/floorFlora2,floors/floorFlora2,floors/floorFlora,floors/floorFlora2,floors/glass,floors/floorFlora3,floors/floorFlora3,floors/floorFlora3,floors/floorFlora3,floors/floorFlora3,-,-,-,-
+16: -,floors/floorFlora2,floors/floorFlora3,floors/glass,floors/floorFlora3,floors/floorFlora,floors/glass,floors/floorFlora2,floors/floorFlora2,floors/floorFlora2,floors/floorFlora3,floors/floorFlora2,floors/glass,floors/glass,floors/glass,floors/glass,floors/floorFlora,floors/floorFlora2,floors/floorFlora2,floors/floorFlora3,floors/floorFlora,floors/floorFlora,floors/floorFlora3,floors/floorFlora2,floors/glass,floors/floorFlora,-,-,-,-
+17: -,floors/glass,floors/floorFlora,floors/floorFlora3,floors/glass,floors/glass,floors/floorFlora3,floors/glass,floors/floorFlora2,floors/glass,floors/floorFlora,floors/floorFlora2,floors/floorFlora2,floors/floorFlora2,floors/floorFlora,floors/glass,floors/floorFlora2,floors/glass,floors/floorFlora2,floors/floorFlora,floors/glass,floors/floorFlora,floors/floorFlora2,floors/floorFlora,floors/glass,floors/floorFlora2,floors/floorFlora,floors/floorFlora3,-,-
+18: -,floors/floorFlora2,floors/floorFlora3,floors/floorFlora,floors/floorFlora3,floors/floorFlora3,floors/floorFlora2,floors/floorFlora3,floors/floorFlora2,floors/glass,floors/floorFlora2,floors/floorFlora,floors/floorFlora,floors/glass,floors/glass,floors/floorFlora3,floors/floorFlora3,floors/glass,floors/glass,floors/floorFlora,floors/floorFlora,floors/floorFlora3,floors/glass,floors/glass,floors/glass,floors/glass,floors/floorFlora2,floors/floorFlora2,-,-
+19: -,-,-,floors/floorFlora3,floors/floorFlora,floors/floorFlora,floors/floorFlora3,floors/glass,floors/glass,floors/glass,floors/floorFlora2,floors/floorFlora,floors/floorFlora2,floors/floorFlora,floors/floorFlora3,floors/floorFlora3,floors/floorFlora,floors/floorFlora,floors/floorFlora,floors/glass,floors/floorFlora,floors/floorFlora3,floors/glass,floors/floorFlora3,floors/floorFlora,floors/floorFlora2,floors/floorFlora2,floors/floorFlora3,-,-
+20: -,-,-,floors/glass,floors/floorFlora,floors/floorFlora,floors/floorFlora2,floors/floorFlora,floors/glass,floors/floorFlora,floors/floorFlora3,floors/floorFlora,floors/floorFlora,floors/floorFlora2,floors/floorFlora,floors/floorFlora3,floors/floorFlora3,floors/floorFlora2,floors/floorFlora2,floors/glass,floors/glass,floors/floorFlora2,floors/glass,floors/floorFlora3,floors/floorFlora,floors/glass,floors/glass,floors/glass,-,-
+21: -,-,-,floors/floorFlora2,floors/glass,floors/glass,floors/floorFlora,floors/floorFlora,floors/floorFlora,floors/floorFlora2,floors/glass,floors/glass,floors/floorFlora,floors/floorFlora3,floors/floorFlora,floors/floorFlora3,floors/floorFlora,floors/floorFlora2,floors/floorFlora2,floors/glass,floors/floorFlora3,floors/floorFlora,floors/floorFlora2,floors/floorFlora,floors/floorFlora3,floors/floorFlora,floors/glass,floors/glass,-,-
+22: -,-,-,-,-,floors/floorFlora,floors/floorFlora,floors/glass,floors/floorFlora3,floors/floorFlora2,floors/floorFlora,floors/floorFlora3,floors/floorFlora,floors/glass,floors/floorFlora3,floors/floorFlora3,floors/floorFlora2,floors/floorFlora,floors/floorFlora2,floors/glass,floors/glass,floors/glass,floors/glass,floors/floorFlora2,floors/floorFlora2,floors/floorFlora3,floors/floorFlora,floors/floorFlora2,-,-
+23: -,-,-,-,-,-,-,-,-,floors/floorFlora3,floors/floorFlora,floors/floorFlora,floors/glass,floors/floorFlora3,floors/glass,floors/floorFlora2,floors/floorFlora2,floors/floorFlora2,floors/floorFlora2,floors/floorFlora3,floors/floorFlora,floors/glass,floors/floorFlora,floors/floorFlora2,floors/glass,floors/floorFlora2,floors/glass,floors/floorFlora,-,-
+24: -,-,-,-,-,-,-,-,-,-,-,floors/floorFlora3,floors/glass,floors/floorFlora,floors/floorFlora3,floors/floorFlora,floors/glass,floors/glass,floors/glass,floors/glass,floors/floorFlora3,floors/floorFlora3,floors/floorFlora2,floors/floorFlora3,floors/floorFlora2,floors/floorFlora,floors/glass,floors/floorFlora2,-,-
+25: -,-,-,-,-,-,-,-,-,-,-,floors/floorFlora2,floors/glass,floors/floorFlora3,floors/floorFlora,floors/glass,floors/floorFlora3,floors/floorFlora3,floors/floorFlora3,floors/floorFlora,floors/glass,floors/floorFlora2,floors/floorFlora2,floors/floorFlora,floors/floorFlora,floors/glass,-,-,-,-
+26: -,-,-,-,-,-,-,-,-,-,-,floors/floorFlora2,floors/glass,floors/glass,floors/floorFlora,floors/floorFlora2,floors/floorFlora3,floors/floorFlora,floors/floorFlora,floors/floorFlora,floors/floorFlora2,floors/floorFlora2,floors/glass,floors/floorFlora,floors/floorFlora2,floors/floorFlora3,-,-,-,-
+27: -,-,-,-,-,-,-,-,-,-,-,-,-,floors/glass,floors/floorFlora3,floors/floorFlora3,floors/floorFlora3,floors/floorFlora2,floors/floorFlora,floors/glass,floors/floorFlora2,floors/floorFlora,floors/floorFlora2,-,-,-,-,-,-,-
+28: -,-,-,-,-,-,-,-,-,-,-,-,-,-,-,-,floors/glass,floors/floorFlora2,floors/glass,floors/glass,floors/floorFlora,floors/floorFlora2,floors/glass,-,-,-,-,-,-,-
+29: -,-,-,-,-,-,-,-,-,-,-,-,-,-,-,-,floors/floorFlora,floors/glass,floors/glass,floors/glass,floors/floorFlora3,floors/floorFlora,floors/floorFlora3,-,-,-,-,-,-,-
+
+[UNIT]
+10,15,legacy/woman/sword,SE
+10,20,legacy/goblin/unarmed,SE
+15,18,legacy/goblin/unarmed,SE
+8,8,legacy/goblin/unarmed,SE
+6,14,legacy/goblin/unarmed,SE
+5,18,legacy/goblin/unarmed,SE
+14,21,legacy/goblin/unarmed,SE
+19,21,legacy/goblin/unarmed,SE
+19,17,legacy/goblin/unarmed,SE
+12,12,legacy/goblin/unarmed,SE
+
+[OBJECT]
+15,15,objects/barrel,S
+17,23,objects/barrel,S
+15,14,objects/barrel,E
+15,13,objects/barrel,S
+15,12,objects/barrel,W
+16,12,objects/barrel,N
+13,12,objects/barrel,E
+13,13,objects/barrel,E
+14,12,objects/barrel,S
+14,13,objects/barrel,S
+13,14,objects/barrel,W

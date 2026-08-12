@@ -1,13 +1,11 @@
 package org.toltec.mapeditor.ui;
 
 import javafx.application.Platform;
-import javafx.embed.swing.SwingNode;
 import javafx.scene.layout.StackPane;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import org.toltec.editor.model.ObjectCategory;
 import org.toltec.engine.EngineOptions;
-import org.toltec.engine.GameCanvas;
 import org.toltec.mapeditor.engine.MapEditorEngine;
 import org.toltec.mapeditor.io.CatalogLoader;
 import org.toltec.mapeditor.io.MapFormat;
@@ -16,7 +14,6 @@ import org.toltec.mapeditor.model.PaletteEntry;
 import org.toltec.mapeditor.model.Tool;
 import org.toltec.unit.Direction8;
 
-import javax.swing.SwingUtilities;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashSet;
@@ -40,6 +37,7 @@ public class MapEditorController {
     private final StackPane canvasHost;
 
     private MapEditorEngine engine;
+    private FxEngineCanvas canvas;
     private List<PaletteEntry> floors = List.of();
     private List<PaletteEntry> units = List.of();
     private List<PaletteEntry> objects = List.of();
@@ -59,17 +57,11 @@ public class MapEditorController {
         toolbar.setOnLoad(this::promptLoad);
         toolbar.setOnRotate(this::rotateDirection);
         toolbar.setDirection(currentDirection);
-        toolbar.toolProperty().addListener((obs, was, now) -> updateStatus());
-        palette.setOnSelectionChanged(this::updateStatus);
-        EngineOptions o = new EngineOptions();
-        o.mapWidthCells    = 20;
-        o.mapHeightCells   = 20;
-        o.cellWidth        = 64;
-        o.cellHeight       = 32;
-        o.viewType         = EngineOptions.ViewType.ISOMETRIC;
-        o.tickIntervalMs   = 10;
-        o.renderIntervalMs = 10;
-        buildEngine(o);
+        toolbar.toolProperty().addListener((obs, was, now) -> { updateStatus(); refreshPreview(); });
+        toolbar.showGridProperty().addListener((obs, was, now) -> { if (engine != null) engine.showGrid = now; });
+        palette.setOnSelectionChanged(() -> { updateStatus(); refreshPreview(); });
+
+        buildEngine(new EngineOptions());
     }
 
     // =========================================================================
@@ -78,6 +70,7 @@ public class MapEditorController {
 
     private void buildEngine(EngineOptions opts) {
         if (engine != null) engine.stop();
+        if (canvas != null) canvas.stop();
         touchedThisStroke.clear();
 
         MapEditorEngine fresh = new MapEditorEngine(opts);
@@ -106,18 +99,22 @@ public class MapEditorController {
         });
 
         this.engine = fresh;
+        fresh.showGrid = toolbar.showGridProperty().get();
         mountCanvas(fresh);
         updateStatus();
+        refreshPreview();
     }
 
     private void mountCanvas(MapEditorEngine eng) {
-        SwingNode node = new SwingNode();
-        canvasHost.getChildren().setAll(node);
-        SwingUtilities.invokeLater(() -> {
-            GameCanvas canvas = new GameCanvas(eng);
-            node.setContent(canvas);
-            eng.start(canvas);
-        });
+        FxEngineCanvas fx = new FxEngineCanvas(eng);
+
+        //fx.widthProperty().bind(canvasHost.widthProperty());
+        //fx.heightProperty().bind(canvasHost.heightProperty());
+        canvasHost.getChildren().setAll(fx);
+        fx.widthProperty().bind(canvasHost.widthProperty());
+        fx.heightProperty().bind(canvasHost.heightProperty());
+        fx.start();
+        this.canvas = fx;
     }
 
     // =========================================================================
@@ -174,6 +171,34 @@ public class MapEditorController {
     private void rotateDirection() {
         currentDirection = Direction8.values()[(currentDirection.ordinal() + 1) % Direction8.values().length];
         toolbar.setDirection(currentDirection);
+        refreshPreview();
+    }
+
+    /** Keeps the cursor-follow ghost (see {@link MapEditorEngine#setPreviewFloor}) in sync with
+     *  the current tool + palette selection + stamp direction. Picking a random entry among a
+     *  multi-select the way {@link #pickRandom} does for actual painting would make the ghost
+     *  flicker between different sprites every call for no reason — just show the first one. */
+    private void refreshPreview() {
+        if (engine == null) return;
+        Tool tool = toolbar.toolProperty().get();
+        switch (tool) {
+            case FLOOR_BRUSH -> {
+                Set<PaletteEntry> sel = palette.selectedFor(ObjectCategory.FLOOR);
+                if (sel.isEmpty()) engine.clearPreview();
+                else engine.setPreviewFloor(sel.iterator().next());
+            }
+            case UNIT_BRUSH -> {
+                Set<PaletteEntry> sel = palette.selectedFor(ObjectCategory.UNIT);
+                if (sel.isEmpty()) engine.clearPreview();
+                else engine.setPreviewUnit(sel.iterator().next(), currentDirection);
+            }
+            case OBJECT_BRUSH -> {
+                Set<PaletteEntry> sel = palette.selectedFor(ObjectCategory.OBJECT);
+                if (sel.isEmpty()) engine.clearPreview();
+                else engine.setPreviewObject(sel.iterator().next(), currentDirection);
+            }
+            case ERASER -> engine.clearPreview();
+        }
     }
 
     private void updateStatus() {
