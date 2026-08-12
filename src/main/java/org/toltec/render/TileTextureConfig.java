@@ -193,6 +193,16 @@ public class TileTextureConfig {
     public boolean has(String type) { return types.containsKey(type); }
 
     /**
+     * Every tile type this config has loaded, in no particular order. Meant
+     * for catalog/palette UIs (e.g. a map editor) that need to enumerate
+     * "what floor types are available" without already knowing the type
+     * name(s) up front — {@link #get}/{@link #has} still need those names.
+     */
+    public java.util.Set<String> typeNames() {
+        return java.util.Collections.unmodifiableSet(types.keySet());
+    }
+
+    /**
      * Builds a ready-to-place floor {@link GraphicObject} for tile
      * {@code type} at (col,row): picks one of its orientation variants (see
      * {@link TileType#pickVariant}) and sets {@code isFloor}/{@code collision}/

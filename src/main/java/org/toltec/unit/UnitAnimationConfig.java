@@ -700,6 +700,27 @@ public class UnitAnimationConfig {
     // =========================================================================
 
     /**
+     * Every concrete (non-wildcard) {@code gender|weapon} combination this
+     * config has at least one clip for, as {@code [genderKey, weaponToken]}
+     * pairs, in no particular order. Meant for catalog/palette UIs (e.g. a
+     * map editor) that need to enumerate "what unit types are available"
+     * without already knowing the combos up front — {@link #resolve} still
+     * needs a concrete {@link Gender} + weapon (or wildcards) to look one up.
+     * The gender key matches {@link Gender#key()}; look it up with a small
+     * loop over {@link Gender#values()} to get back a {@link Gender}.
+     */
+    public java.util.Set<java.util.List<String>> genderWeaponPairs() {
+        java.util.Set<java.util.List<String>> out = new java.util.LinkedHashSet<>();
+        for (String key : clips.keySet()) {
+            String[] parts = key.split("\\|", -1);
+            if (parts.length != 4) continue;
+            if (parts[0].equals(WILDCARD) || parts[1].equals(WILDCARD)) continue;
+            out.add(java.util.List.of(parts[0], parts[1]));
+        }
+        return out;
+    }
+
+    /**
      * Look up the best-matching clip for this combination, falling back
      * through wildcards in any bracket and preferring the most specific
      * match available.

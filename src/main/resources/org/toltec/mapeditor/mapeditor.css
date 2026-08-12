@@ -1,0 +1,12 @@
+/*
+ * Map editor extras — loaded together with /org/toltec/editor/editor.css,
+ * which already covers buttons, toggles, panels, labels, etc.
+ */
+
+.preview-cell {
+    -fx-background-color: black;
+}
+
+.split-pane > .split-pane-divider {
+    -fx-padding: 0 2 0 2;
+}

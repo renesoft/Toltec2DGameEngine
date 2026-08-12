@@ -519,6 +519,22 @@ public class ObjectTextureConfig {
     // =========================================================================
 
     /**
+     * Every concrete (non-wildcard) {@code state} this config has at least
+     * one clip for, in no particular order. Meant for catalog/palette UIs
+     * (e.g. a map editor) that need to know what states exist without
+     * already knowing the state name(s) up front — {@link #resolve} still
+     * needs a concrete state (or {@code "*"}) to look one up.
+     */
+    public java.util.Set<String> stateNames() {
+        java.util.Set<String> out = new java.util.LinkedHashSet<>();
+        for (String key : clips.keySet()) {
+            String state = key.substring(0, key.indexOf('|'));
+            if (!state.equals(WILDCARD)) out.add(state);
+        }
+        return out;
+    }
+
+    /**
      * Look up the best-matching clip for this (state, direction) combination,
      * falling back through wildcards in either bracket and preferring the
      * most specific match available — same precedence rule as

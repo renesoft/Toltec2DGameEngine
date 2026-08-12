@@ -14,7 +14,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import javax.imageio.ImageIO;
 
 /**
@@ -76,8 +75,8 @@ public class AssetStorage {
      * Load a single image from a classpath resource.
      */
     public void loadImageResource(String name, String resource, Color bgColor) throws IOException {
-        InputStream is = Objects.requireNonNull(
-                getClass().getResourceAsStream(resource), "Resource not found: " + resource);
+        InputStream is = getClass().getResourceAsStream(resource);
+        if (is == null) throw new IOException("Resource not found: " + resource);
         BufferedImage raw = ImageIO.read(is);
         if (raw == null) throw new IOException("Cannot decode resource: " + resource);
         assets.put(name, accelerate(bgColor != null ? trim(raw, bgColor) : toRGB(raw)));
@@ -96,8 +95,8 @@ public class AssetStorage {
      * from where it should sit.
      */
     public void loadImageResourceTrimAlpha(String name, String resource) throws IOException {
-        InputStream is = Objects.requireNonNull(
-                getClass().getResourceAsStream(resource), "Resource not found: " + resource);
+        InputStream is = getClass().getResourceAsStream(resource);
+        if (is == null) throw new IOException("Resource not found: " + resource);
         BufferedImage raw = ImageIO.read(is);
         if (raw == null) throw new IOException("Cannot decode resource: " + resource);
         assets.put(name, accelerate(trimTransparent(toRGB(raw))));
@@ -140,8 +139,8 @@ public class AssetStorage {
 
     /** Classpath counterpart of {@link #loadImageNoTrim}. */
     public void loadImageResourceNoTrim(String name, String resource) throws IOException {
-        InputStream is = Objects.requireNonNull(
-                getClass().getResourceAsStream(resource), "Resource not found: " + resource);
+        InputStream is = getClass().getResourceAsStream(resource);
+        if (is == null) throw new IOException("Resource not found: " + resource);
         BufferedImage raw = ImageIO.read(is);
         if (raw == null) throw new IOException("Cannot decode resource: " + resource);
         assets.put(name, accelerate(toRGB(raw)));
@@ -225,8 +224,8 @@ public class AssetStorage {
      * @return number of frames found
      */
     public int loadAnimationResource(String name, String resource, Color bgColor) throws IOException {
-        InputStream is = Objects.requireNonNull(
-                getClass().getResourceAsStream(resource), "Resource not found: " + resource);
+        InputStream is = getClass().getResourceAsStream(resource);
+        if (is == null) throw new IOException("Resource not found: " + resource);
         BufferedImage sheet = ImageIO.read(is);
         if (sheet == null) throw new IOException("Cannot decode resource: " + resource);
         return storeFrames(name, extractFrames(sheet, bgColor));
@@ -234,8 +233,8 @@ public class AssetStorage {
 
     /** Classpath counterpart of {@link #loadAnimationTrimAlpha} — see there for the slicing rule. */
     public int loadAnimationResourceTrimAlpha(String name, String resource) throws IOException {
-        InputStream is = Objects.requireNonNull(
-                getClass().getResourceAsStream(resource), "Resource not found: " + resource);
+        InputStream is = getClass().getResourceAsStream(resource);
+        if (is == null) throw new IOException("Resource not found: " + resource);
         BufferedImage sheet = ImageIO.read(is);
         if (sheet == null) throw new IOException("Cannot decode resource: " + resource);
         return storeFrames(name, extractFramesByAlpha(toRGB(sheet)));
@@ -453,8 +452,8 @@ public class AssetStorage {
     }
 
     private BufferedImage readResourceOrThrow(String resource) throws IOException {
-        InputStream is = Objects.requireNonNull(
-                getClass().getResourceAsStream(resource), "Resource not found: " + resource);
+        InputStream is = getClass().getResourceAsStream(resource);
+        if (is == null) throw new IOException("Resource not found: " + resource);
         BufferedImage img = ImageIO.read(is);
         if (img == null) throw new IOException("Cannot decode resource: " + resource);
         return img;
